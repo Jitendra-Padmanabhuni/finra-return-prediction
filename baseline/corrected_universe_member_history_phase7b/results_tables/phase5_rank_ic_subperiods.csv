@@ -1,0 +1,3 @@
+subperiod,start,end,days,mean_rank_ic,positive
+subperiod_1,2025-05-28,2026-01-13,159,0.017413230379694628,True
+subperiod_2,2026-01-14,2026-08-31,158,0.004411093244295355,True

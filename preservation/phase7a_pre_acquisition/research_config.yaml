@@ -1,0 +1,290 @@
+# Authoritative configuration for the FINRA short-sale volume alpha project.
+# Phase 0 initializes this file only; null values require a documented,
+# pre-performance choice in the relevant later phase.
+
+project:
+  name: finra_short_sale_volume_alpha
+  current_phase: phase_7a_historical_extension
+  specification_status: authoritative_user_provided
+  timezone: America/New_York
+
+approved_amendment:
+  approved_on: 2026-09-10
+  rationale: bounded_interview_proof_of_concept_without_licensed_market_data
+  status: active
+  replaces_for_prototype:
+    - survivorship_free_primary_universe_requirement
+    - permanent_identifier_requirement
+    - licensed_corporate_action_data_requirement
+  disclosure: >-
+    The prototype universe is retrieval-date-stamped, survivorship- and selection-biased,
+    and is not production-ready or conclusive.
+  retained_constraints:
+    - finra_consolidated_nms_is_the_sole_alpha_data_source
+    - no_lookahead_in_features_or_liquidity_screen
+    - no_post_performance_specification_optimization
+    - log_market_data_and_symbol_failures
+
+approved_liquidity_correction:
+  approved_on: 2026-09-11
+  status: corrected_phase_2_to_7_pipeline_complete_awaiting_review
+  bug: expanding_history_median_was_used_while_only_minimum_20_observations_were_required
+  corrected_rule:
+    shared_dates: exactly_20_immediately_preceding_monthly_rebalance
+    current_rebalance_date_included: false
+    older_dates_permitted: false
+    valid_fields_required_on_all_dates: [Close, Volume]
+    dollar_volume_formula: raw_Close_times_raw_Volume
+    selection: top_400_descending_median_dollar_volume_then_source_symbol_ascending
+    membership_hold: fixed_until_next_monthly_refresh
+  legacy_output_location: legacy/expanding_liquidity_window
+  primary_output_policy: corrected_outputs_only
+  phase_7a_acquisition_status: not_started_stop_for_review
+  validation:
+    synthetic_regression_test: passed
+    corrected_pipeline_tests: passed
+    legacy_archive_checksums: passed
+    monthly_rebalances_validated: 18
+    evaluation_dates_retained: 317
+
+approved_candidate_history_layer_phase_7b:
+  approved_on: 2026-09-11
+  status: complete_awaiting_review
+  primary_output_policy: candidate_history_phase7b_outputs
+  acquisition_policy: existing_yahoo_and_finra_data_only_no_phase_7a_history
+  candidate_history_panel: all_503_timestamped_candidates_on_every_shared_market_date
+  membership_policy: top_400_membership_gates_signal_date_evaluation_only_not_prior_feature_history
+  phase_6_history: exact_prior_20_shared_dates_valid_observations_required
+  phase_7_history: exact_prior_60_shared_dates_valid_q_required
+  signal_parameters_unchanged: [q, S0, 60_date_median_mad, epsilon_0.000001, hac_5, tie_rule, decile_rule]
+  primary_inference: locked_two_sided_hac_5
+  supplementary_inference: one_sided_p_value_expected_effect_greater_than_zero
+  preserve_prior_corrected_version: corrected_universe_member_history_phase7b_baseline
+  validation:
+    candidate_history_rows: 205224
+    candidate_count: 503
+    shared_dates: 408
+    full_sample_s0_reproduction: exact_daily_rank_ic_match
+    phase_7_s1_eligible_rows: 125980
+    tests_passed: 7
+  phase_7a_acquisition_status: not_started_stop_for_review
+
+paths:
+  raw_data: data/raw
+  intermediate_data: data/intermediate
+  processed_data: data/processed
+  results_tables: results/tables
+  results_figures: results/figures
+  research_log: logs/research_log.md
+
+data:
+  finra:
+    source_status: phase_3_full_warmup_and_evaluation_calendar_acquired
+    acquired_trade_date_start: 2025-01-15
+    acquired_trade_date_end: 2026-08-31
+    acquired_file_count: 408
+    acquired_file_failures: 0
+    primary_file: consolidated_nms
+    primary_file_scope: exchange_listed_securities_reported_to_finra_trfs_and_adf
+    sampled_trade_dates: [20260908, 20260909, 20260910]
+    sampled_component_date: 20260910
+    observed_schema_note: current_sample_volume_fields_contain_decimals
+    raw_file_immutability: true
+    retain_source_metadata: true
+    revision_policy: current_downloads_may_not_equal_as_first_published_versions
+    denominator_description: total_reported_volume_within_relevant_finra_dataset
+  market_data:
+    source: yahoo_finance_via_yfinance
+    role: auxiliary_ohlcv_target_liquidity_and_diagnostic_data_only
+    adjusted_ohlc_policy: auto_adjust_false_retain_adjusted_close_and_actions
+    warmup_start: 2025-01-15
+    evaluation_start: 2025-05-01
+    evaluation_end: 2026-08-31
+    sample_end_exclusive: 2026-09-01
+    date_selection_basis: complete_yahoo_ohlcv_window_and_http_200_finra_endpoint_probe_before_alpha_inspection
+    yfinance_version_observed: 1.7.0
+
+universe:
+  primary_definition: fixed_retrieval_date_stamped_prototype_current_large_liquid_us_common_equities
+  universe_bias_disclosure: survivorship_and_selection_biased_not_production_ready_or_conclusive
+  candidate_source: sp_500_constituents_retrieved_from_wikipedia
+  candidate_retrieval_timestamp_utc: 2026-09-11T01:12:31.668153+00:00
+  candidate_count_retrieved: 503 # Three share-class rows above the approximate 300–500 target.
+  candidate_target_size: [300, 503]
+  exclude: [otc, etfs, preferred_shares, warrants_and_similar_non_common_securities]
+  refresh_frequency: monthly
+  membership_between_refreshes: fixed
+  liquidity_metric: trailing_median_dollar_adv
+  liquidity_lookback_trading_days: 20
+  target_security_count: [300, 500]
+  selection_rule: monthly_top_400_by_strictly_lagged_20_trading_day_median_dollar_volume
+  implementation_rule: exactly_20_immediately_preceding_shared_dates_all_close_and_volume_valid
+  legacy_implementation: expanding_history_median_with_minimum_20_observations_archived_and_nonprimary
+  selection_rule_rationale: fixed_prototype_candidate_set_then_point_in_time_liquidity_screen
+
+features:
+  raw_short_volume_ratio:
+    numerator: short_volume
+    denominator: total_reported_volume
+    zero_denominator: missing
+  volume_surprise:
+    formula: log(volume_t / median(volume_t_minus_20_to_t_minus_1))
+    lookback_trading_days: 20
+    minimum_history: 20
+  realized_volatility:
+    lookback_trading_days: null # Optional extension only.
+  abnormal_short_volume:
+    lookback_trading_days: 60
+    center: median
+    dispersion: mad
+    mad_scale: 1.4826
+    epsilon: 0.000001
+    history_includes_current_day: false
+  state_conditioning:
+    status: optional_extension_only
+    volume_surprise_buckets: 5
+    volatility_buckets: 5
+    cell_statistic: cross_sectional_median_abnormal_score
+
+signal:
+  primary_comparison: [raw_finra_short_volume_ratio, stock_relative_60_day_median_mad_abnormality]
+  raw_alpha: negative_abnormal_short_volume
+  final_transformation: cross_sectional_rank_as_portfolio_representation
+  rank_formula: (rank_minus_0_5_divided_by_n_times_2)_minus_1
+
+target:
+  primary_horizon: next_trading_day_open_to_close
+  formula: adjusted_close_t_plus_1_divided_by_adjusted_open_t_plus_1_minus_1
+  feature_cutoff: end_of_day_t
+  locked_primary_evaluation_start: 2025-05-28
+  locked_primary_evaluation_end: 2026-08-31
+  calendar_policy: immediately_following_shared_market_session_no_security_specific_shift
+
+portfolio:
+  long_quantile: 0.10
+  short_quantile: 0.10
+  weighting: equal_dollar_within_leg
+  long_exposure: 0.50
+  short_exposure: -0.50
+  gross_exposure: 1.00
+  turnover_formula: 0.5_times_sum_abs_weight_change
+  round_trip_cost_bps: [5, 10, 20]
+
+evaluation:
+  primary_signal_metric: daily_spearman_rank_ic
+  icir_annualization_days: 252
+  primary_portfolio_metric: top_decile_minus_bottom_decile_open_to_close_return
+  primary_confound: same_day_return_short_term_reversal
+  optional_extensions:
+    - volume_volatility_5x5_conditioning
+    - sector_and_market_cap_analysis
+    - alternative_horizons
+    - placebo_tests
+    - flow_versus_inventory_analysis
+    - extensive_transaction_cost_analysis
+  naive_signal_phase_5:
+    evaluation_window: [2025-05-28, 2026-08-31]
+    ratio_formula: ShortVolume_divided_by_TotalVolume
+    naive_alpha_formula: negative_raw_finra_ratio
+    expected_s0_rank_ic_sign: positive
+    raw_q_equivalent_expected_ic_sign: negative
+    ratio_bounds_tolerance: 1.0e-12
+    rank_tie_rule: stable_first_rank_after_canonical_symbol_sort
+    decile_rule: approximately_equal_count_floor_rank_times_10_divided_by_n_plus_1
+    hac_newey_west_lags: 5
+    predefined_subperiods:
+      - [2025-05-28, 2026-01-13]
+      - [2026-01-14, 2026-08-31]
+    directionally_supportive_if: mean_rank_ic_positive_and_mean_top_minus_bottom_decile_return_positive
+    statistically_convincing_if:
+      - two_sided_hac_rank_ic_t_stat_at_least_2
+      - reasonably_monotonic_decile_profile
+      - positive_long_short_return
+      - positive_rank_ic_in_both_predefined_subperiods
+    performance_label: gross_illustrative_no_transaction_costs
+  confound_analysis_phase_6:
+    evaluation_window: [2025-05-28, 2026-08-31]
+    same_day_return_formula: adjusted_close_t_divided_by_adjusted_open_t_minus_1
+    reversal_formula: negative_same_day_open_to_close_return
+    volume_surprise_formula: log_volume_t_divided_by_median_of_20_strictly_prior_valid_volume_observations
+    volume_surprise_lookback_valid_observations: 20
+    realized_volatility_formula: sample_standard_deviation_of_20_strictly_prior_valid_close_to_close_returns_ending_t_minus_1
+    realized_volatility_lookback_valid_returns: 20
+    history_includes_current_day: false
+    regression_common_sample: intersection_of_nonmissing_s0_reversal_volume_surprise_realized_volatility_and_forward_return
+    regression_rank_normalization: daily_average_tie_percentile_rank_scaled_to_minus1_plus1
+    regression_rank_formula: 2_times_open_paren_rank_average_minus_0_5_close_paren_divided_by_n_minus_1
+    hac_newey_west_lags: 5
+    predefined_subperiods:
+      - [2025-05-28, 2026-01-13]
+      - [2026-01-14, 2026-08-31]
+    interpretation: associational_not_causal
+  abnormal_signal_phase_7:
+    evaluation_window: [2025-05-28, 2026-08-31]
+    shared_calendar_history_dates: 60
+    history_window: t_minus_60_through_t_minus_1
+    require_all_prior_q_observations: true
+    permit_backward_history_substitution: false
+    historical_center: median
+    historical_dispersion: median_absolute_deviation
+    mad_scale: 1.4826
+    epsilon: 0.000001
+    primary_z_transformation: none
+    primary_alpha: negative_z
+    primary_rank_use: ic_and_decile_assignment_only
+    decile_tie_rule: stable_first_rank_after_canonical_symbol_sort
+    extreme_z_handling: flag_do_not_winsorize_cap_or_remove
+    near_zero_mad_definition: mad_less_than_or_equal_to_epsilon
+    paired_s0_comparison: exact_s1_eligible_stock_date_observations
+    hac_newey_west_lags: 5
+    predefined_subperiods:
+      - [2025-05-28, 2026-01-13]
+      - [2026-01-14, 2026-08-31]
+    mechanical_example_selection: first_three_alphabetical_symbols_with_valid_s1_history
+  historical_extension_phase_7a:
+    specification_locked_before_acquisition: true
+    warmup_acquisition_start: 2022-09-01
+    additional_historical_evaluation: [2023-01-03, 2025-05-27]
+    original_examined_evaluation: [2025-05-28, 2026-08-31]
+    combined_evaluation: [2023-01-03, 2026-08-31]
+    endpoint_extra_market_session_required: true
+    historical_membership_source: wikipedia_sp500_current_snapshot_plus_additions_removals_table
+    reconstruction_direction: backward_from_timestamped_september_2026_snapshot
+    change_effective_date_policy: apply_on_stated_date
+    security_identity_policy: company_name_and_ticker_occurrence_not_ticker_alone
+    successor_substitution: prohibited
+    reconstruction_label: best_effort_public_not_licensed_point_in_time_security_master
+    monthly_liquidity_rule: top_400_by_strictly_prior_20_trading_day_median_dollar_volume
+    coverage_gate_complete_market_and_finra: 0.95
+    below_gate_policy: audit_but_do_not_silently_pool_or_call_survivorship_safe
+    frozen_signals: [q, S0, exact_60_shared_date_median_mad_z, S1]
+    epsilon: 0.000001
+    hac_newey_west_lags: 5
+    tuning_after_additional_period_view: prohibited
+    architecture: completed_phase_7b_candidate_history_layer
+    historical_security_union: all_reconstructed_members_with_features_built_before_signal_date_eligibility
+    signal_date_eligibility: reconstructed_sp500_membership_then_exact_20_date_top_400
+    exact_market_history_required_for_liquidity: [Close, Volume]
+    original_period_replication_required_before_historical_interpretation: true
+    combined_evaluation_permitted_only_after_coverage_gate_and_methodology_comparability
+    frozen_phase_7b_benchmarks:
+      s0_full_mean_ic: 0.010932669914732216
+      s0_full_hac5_ic_t: 1.8997162429899752
+      s0_full_gross_sharpe: 0.6257832740086068
+      s1_paired_eligible_rows: 125980
+      s0_paired_mean_ic: 0.0106174406
+      s0_paired_hac5_ic_t: 1.8307465014
+      s1_mean_ic: 0.0129529035
+      s1_hac5_ic_t: 2.5911943971
+      s1_one_sided_hac_ic_p: 0.0047821724
+      paired_ic_difference: 0.0023354629
+      paired_ic_difference_hac5_t: 0.6279402985
+      paired_ic_difference_one_sided_p: 0.2650215253
+    preservation_policy: phase_7a_prefix_only_no_overwrite_of_phase_0_through_7b
+    prospective_test_label_prohibited: true
+
+reproducibility:
+  random_seed: 20260910
+  missing_values_are_zero: false
+  data_versioning_required: true
+  retain_failed_experiments: true

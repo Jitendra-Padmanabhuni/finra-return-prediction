@@ -1,0 +1,355 @@
+{
+  "consolidated_component_reconciliation": [
+    {
+      "common_symbols": 12327,
+      "component_files": [
+        "FNQCshvol20260910.txt",
+        "FNSQshvol20260910.txt",
+        "FNYXshvol20260910.txt"
+      ],
+      "consolidated_file": "CNMSshvol20260910.txt",
+      "date": "20260910",
+      "mismatch_count": 0,
+      "mismatch_examples": [],
+      "missing_in_components_count": 0,
+      "missing_in_consolidated_count": 0
+    }
+  ],
+  "expected_header": [
+    "Date",
+    "Symbol",
+    "ShortVolume",
+    "ShortExemptVolume",
+    "TotalVolume",
+    "Market"
+  ],
+  "files": [
+    {
+      "duplicate_date_symbol_market_rows": 0,
+      "facility": "consolidated_nms",
+      "file": "CNMSshvol20260908.txt",
+      "fractional_value_rows": {
+        "ShortExemptVolume": 97,
+        "ShortVolume": 8236,
+        "TotalVolume": 11734
+      },
+      "market_values": {
+        "B": 2,
+        "B,Q": 482,
+        "B,Q,N": 5258,
+        "N": 34,
+        "Q": 4307,
+        "Q,N": 2242
+      },
+      "missing_by_field": {},
+      "nonpositive_total_volume_rows": 0,
+      "row_count": 12325,
+      "sha256": "1745aade369de4835ddaebb540b0433f4bb36d5706ee7b718d139c5876dd56d6",
+      "short_volume_greater_than_total_volume_rows": 0,
+      "short_volume_ratio_quantiles": {
+        "max": "1",
+        "min": "0.000001425500493223170655217046705",
+        "p01": "0.003735513594232510454227022387",
+        "p50": "0.4968820650418623139797769000",
+        "p99": "0.9984795142670072797093499274"
+      },
+      "trade_dates": [
+        "20260908"
+      ],
+      "trailer_count": 12325,
+      "unique_symbols": 12325,
+      "volume_ranges": {
+        "ShortExemptVolume": {
+          "max": "10005039.220000",
+          "min": "0"
+        },
+        "ShortVolume": {
+          "max": "141390361.830200",
+          "min": "0.002473"
+        },
+        "TotalVolume": {
+          "max": "257620227.454095",
+          "min": "1"
+        }
+      },
+      "zero_total_volume_rows": 0
+    },
+    {
+      "duplicate_date_symbol_market_rows": 0,
+      "facility": "consolidated_nms",
+      "file": "CNMSshvol20260909.txt",
+      "fractional_value_rows": {
+        "ShortExemptVolume": 117,
+        "ShortVolume": 7944,
+        "TotalVolume": 11659
+      },
+      "market_values": {
+        "B": 3,
+        "B,Q": 463,
+        "B,Q,N": 5032,
+        "N": 46,
+        "Q": 4330,
+        "Q,N": 2401
+      },
+      "missing_by_field": {},
+      "nonpositive_total_volume_rows": 0,
+      "row_count": 12275,
+      "sha256": "5ab73e17a03eee828c15af067bf8827237b69fbd8e2f174f180acbddb39cc3f3",
+      "short_volume_greater_than_total_volume_rows": 0,
+      "short_volume_ratio_quantiles": {
+        "max": "1",
+        "min": "0.000002354314988510942856066598862",
+        "p01": "0.003278688524590163934426229508",
+        "p50": "0.5019860506424172092033381814",
+        "p99": "0.9975634262999560977236951667"
+      },
+      "trade_dates": [
+        "20260909"
+      ],
+      "trailer_count": 12275,
+      "unique_symbols": 12275,
+      "volume_ranges": {
+        "ShortExemptVolume": {
+          "max": "6359686.398500",
+          "min": "0"
+        },
+        "ShortVolume": {
+          "max": "91142973.365600",
+          "min": "0.012333"
+        },
+        "TotalVolume": {
+          "max": "150108551.037568",
+          "min": "1"
+        }
+      },
+      "zero_total_volume_rows": 0
+    },
+    {
+      "duplicate_date_symbol_market_rows": 0,
+      "facility": "consolidated_nms",
+      "file": "CNMSshvol20260910.txt",
+      "fractional_value_rows": {
+        "ShortExemptVolume": 123,
+        "ShortVolume": 7965,
+        "TotalVolume": 11663
+      },
+      "market_values": {
+        "B": 3,
+        "B,Q": 454,
+        "B,Q,N": 5139,
+        "N": 47,
+        "Q": 4298,
+        "Q,N": 2386
+      },
+      "missing_by_field": {},
+      "nonpositive_total_volume_rows": 0,
+      "row_count": 12327,
+      "sha256": "85d0bfdb7e563c5c26a145e2dcec6c314173b6e361d26feb871068a2b276e77f",
+      "short_volume_greater_than_total_volume_rows": 0,
+      "short_volume_ratio_quantiles": {
+        "max": "1",
+        "min": "0.000001344588434925953514888627740",
+        "p01": "0.003236285055439720523052705707",
+        "p50": "0.4974868401035098362846320615",
+        "p99": "0.9993994615137788519462749929"
+      },
+      "trade_dates": [
+        "20260910"
+      ],
+      "trailer_count": 12327,
+      "unique_symbols": 12327,
+      "volume_ranges": {
+        "ShortExemptVolume": {
+          "max": "9135616",
+          "min": "0"
+        },
+        "ShortVolume": {
+          "max": "93253521.228800",
+          "min": "0.018719"
+        },
+        "TotalVolume": {
+          "max": "168813254.874819",
+          "min": "0.600172"
+        }
+      },
+      "zero_total_volume_rows": 0
+    },
+    {
+      "duplicate_date_symbol_market_rows": 0,
+      "facility": "nasdaq_chicago_trf_chicago",
+      "file": "FNQCshvol20260910.txt",
+      "fractional_value_rows": {
+        "ShortExemptVolume": 7,
+        "ShortVolume": 436,
+        "TotalVolume": 3182
+      },
+      "market_values": {
+        "B": 5596
+      },
+      "missing_by_field": {},
+      "nonpositive_total_volume_rows": 0,
+      "row_count": 5596,
+      "sha256": "aa3103ad8798fa99a59bf5aa1effed58d3e0818ada19e4184bf37f9e8ec41d82",
+      "short_volume_greater_than_total_volume_rows": 0,
+      "short_volume_ratio_quantiles": {
+        "max": "1",
+        "min": "0.0001668891855807743658210947931",
+        "p01": "0.004950495049504950495049504950",
+        "p50": "0.5602022094442166536809586644",
+        "p99": "1"
+      },
+      "trade_dates": [
+        "20260910"
+      ],
+      "trailer_count": 5596,
+      "unique_symbols": 5596,
+      "volume_ranges": {
+        "ShortExemptVolume": {
+          "max": "68976",
+          "min": "0"
+        },
+        "ShortVolume": {
+          "max": "564489.398200",
+          "min": "0.010000"
+        },
+        "TotalVolume": {
+          "max": "1670728.766883",
+          "min": "0.010000"
+        }
+      },
+      "zero_total_volume_rows": 0
+    },
+    {
+      "duplicate_date_symbol_market_rows": 0,
+      "facility": "nasdaq_carteret_trf",
+      "file": "FNSQshvol20260910.txt",
+      "fractional_value_rows": {
+        "ShortExemptVolume": 122,
+        "ShortVolume": 7943,
+        "TotalVolume": 11661
+      },
+      "market_values": {
+        "Q": 12277
+      },
+      "missing_by_field": {},
+      "nonpositive_total_volume_rows": 0,
+      "row_count": 12277,
+      "sha256": "0650c117f7cf1b67f21f46296a3b1bd9cf3f4587352aed14300b156a98e6a929",
+      "short_volume_greater_than_total_volume_rows": 0,
+      "short_volume_ratio_quantiles": {
+        "max": "1",
+        "min": "0.000001344588434925953514888627740",
+        "p01": "0.003014313625620065260284427441",
+        "p50": "0.4949010648475165841282178136",
+        "p99": "0.9986046279499689562242645694"
+      },
+      "trade_dates": [
+        "20260910"
+      ],
+      "trailer_count": 12277,
+      "unique_symbols": 12277,
+      "volume_ranges": {
+        "ShortExemptVolume": {
+          "max": "9082947",
+          "min": "0"
+        },
+        "ShortVolume": {
+          "max": "83613021.228800",
+          "min": "0.018719"
+        },
+        "TotalVolume": {
+          "max": "150605492.874819",
+          "min": "0.446393"
+        }
+      },
+      "zero_total_volume_rows": 0
+    },
+    {
+      "duplicate_date_symbol_market_rows": 0,
+      "facility": "nyse_trf",
+      "file": "FNYXshvol20260910.txt",
+      "fractional_value_rows": {
+        "ShortVolume": 1861,
+        "TotalVolume": 3412
+      },
+      "market_values": {
+        "N": 7572
+      },
+      "missing_by_field": {},
+      "nonpositive_total_volume_rows": 0,
+      "row_count": 7572,
+      "sha256": "6179d975250c6c0f6b34a61842c008bcd3f4598284951b67f1ce2d36d4c95ef5",
+      "short_volume_greater_than_total_volume_rows": 0,
+      "short_volume_ratio_quantiles": {
+        "max": "1",
+        "min": "0.00002954995419757099376495966431",
+        "p01": "0.005620082427875608842263019858",
+        "p50": "0.6016260162601626016260162602",
+        "p99": "1"
+      },
+      "trade_dates": [
+        "20260910"
+      ],
+      "trailer_count": 7572,
+      "unique_symbols": 7572,
+      "volume_ranges": {
+        "ShortExemptVolume": {
+          "max": "935986",
+          "min": "0"
+        },
+        "ShortVolume": {
+          "max": "12427376.314750",
+          "min": "0.018750"
+        },
+        "TotalVolume": {
+          "max": "17692448",
+          "min": "0.018750"
+        }
+      },
+      "zero_total_volume_rows": 0
+    },
+    {
+      "duplicate_date_symbol_market_rows": 0,
+      "facility": "orf",
+      "file": "FORFshvol20260910.txt",
+      "fractional_value_rows": {},
+      "market_values": {
+        "O": 3034
+      },
+      "missing_by_field": {},
+      "nonpositive_total_volume_rows": 0,
+      "row_count": 3034,
+      "sha256": "dc26c4799cf4f3cd35c2fa6bce07b7a09d9926a00928adcb1f9965e2569da0fd",
+      "short_volume_greater_than_total_volume_rows": 0,
+      "short_volume_ratio_quantiles": {
+        "max": "1",
+        "min": "0.00002958579881656804733727810651",
+        "p01": "0.001186763316671176367270017137",
+        "p50": "0.4688563562292367242027410064",
+        "p99": "1"
+      },
+      "trade_dates": [
+        "20260910"
+      ],
+      "trailer_count": 3034,
+      "unique_symbols": 3034,
+      "volume_ranges": {
+        "ShortExemptVolume": {
+          "max": "0",
+          "min": "0"
+        },
+        "ShortVolume": {
+          "max": "173239757",
+          "min": "1"
+        },
+        "TotalVolume": {
+          "max": "256052191",
+          "min": "1"
+        }
+      },
+      "zero_total_volume_rows": 0
+    }
+  ],
+  "generated_at_utc": "2026-09-11T00:28:09.817411+00:00",
+  "purpose": "Phase 1 raw-data audit only; no cleaning, aggregation, universe filter, or alpha computation."
+}

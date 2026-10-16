@@ -1,0 +1,10 @@
+# Core research stack. Pin exact resolved versions in a future lock file once the
+# selected environment and market-data connector are known.
+numpy>=1.26
+pandas>=2.2
+scipy>=1.13
+statsmodels>=0.14
+matplotlib>=3.8
+PyYAML>=6.0
+pytest>=8.0
+yfinance>=0.2.66

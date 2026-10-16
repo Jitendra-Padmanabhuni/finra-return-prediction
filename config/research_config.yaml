@@ -1,0 +1,958 @@
+# Authoritative configuration for the FINRA short-sale volume alpha project.
+# Phase 0 initializes this file only; null values require a documented,
+# pre-performance choice in the relevant later phase.
+
+project:
+  name: finra_short_sale_volume_alpha
+  current_phase: phase_12_final_interpretation_complete_stopped_for_review
+  specification_status: authoritative_user_provided
+  timezone: America/New_York
+
+approved_amendment:
+  approved_on: 2026-09-10
+  rationale: bounded_interview_proof_of_concept_without_licensed_market_data
+  status: active
+  replaces_for_prototype:
+    - survivorship_free_primary_universe_requirement
+    - permanent_identifier_requirement
+    - licensed_corporate_action_data_requirement
+  disclosure: >-
+    The prototype universe is retrieval-date-stamped, survivorship- and selection-biased,
+    and is not production-ready or conclusive.
+  retained_constraints:
+    - finra_consolidated_nms_is_the_sole_alpha_data_source
+    - no_lookahead_in_features_or_liquidity_screen
+    - no_post_performance_specification_optimization
+    - log_market_data_and_symbol_failures
+
+approved_liquidity_correction:
+  approved_on: 2026-09-11
+  status: corrected_phase_2_to_7_pipeline_complete
+  bug: expanding_history_median_was_used_while_only_minimum_20_observations_were_required
+  corrected_rule:
+    shared_dates: exactly_20_immediately_preceding_monthly_rebalance
+    current_rebalance_date_included: false
+    older_dates_permitted: false
+    valid_fields_required_on_all_dates: [Close, Volume]
+    dollar_volume_formula: raw_Close_times_raw_Volume
+    selection: top_400_descending_median_dollar_volume_then_source_symbol_ascending
+    membership_hold: fixed_until_next_monthly_refresh
+  legacy_output_location: legacy/expanding_liquidity_window
+  primary_output_policy: corrected_outputs_only
+  phase_7a_acquisition_status: complete
+  validation:
+    synthetic_regression_test: passed
+    corrected_pipeline_tests: passed
+    legacy_archive_checksums: passed
+    monthly_rebalances_validated: 18
+    evaluation_dates_retained: 317
+
+approved_candidate_history_layer_phase_7b:
+  approved_on: 2026-09-11
+  status: complete
+  primary_output_policy: candidate_history_phase7b_outputs
+  acquisition_policy: existing_yahoo_and_finra_data_only_no_phase_7a_history
+  candidate_history_panel: all_503_timestamped_candidates_on_every_shared_market_date
+  membership_policy: top_400_membership_gates_signal_date_evaluation_only_not_prior_feature_history
+  phase_6_history: exact_prior_20_shared_dates_valid_observations_required
+  phase_7_history: exact_prior_60_shared_dates_valid_q_required
+  signal_parameters_unchanged: [q, S0, 60_date_median_mad, epsilon_0.000001, hac_5, tie_rule, decile_rule]
+  # As of 2026-09-11 (this approval): both rank-IC and long-short/portfolio tests used the
+  # locked two-sided HAC(5) rule as primary. Amended 2026-09-12 for rank-IC tests only; see
+  # approved_one_sided_ic_inference_amendment below. This split reflects that amendment, not
+  # a change to what was approved on 2026-09-11.
+  rank_ic_inference:
+    primary: one_sided_hac_5_expected_effect_greater_than_zero
+    primary_critical_value: 1.645
+    supplementary: two_sided_hac_5
+    amended_on: 2026-09-12
+    superseded_primary: locked_two_sided_hac_5
+  long_short_portfolio_inference:
+    primary: locked_two_sided_hac_5
+    supplementary: one_sided_p_value_expected_effect_greater_than_zero
+    unchanged_by_2026_09_12_amendment: true
+  preserve_prior_corrected_version: corrected_universe_member_history_phase7b_baseline
+  validation:
+    candidate_history_rows: 205224
+    candidate_count: 503
+    shared_dates: 408
+    full_sample_s0_reproduction: exact_daily_rank_ic_match
+    phase_7_s1_eligible_rows: 125980
+    tests_passed: 7
+  phase_7a_acquisition_status: complete
+
+approved_one_sided_ic_inference_amendment:
+  approved_on: 2026-09-12
+  status: complete
+  rationale: >-
+    A directional prior held before results were examined (the signal, and any incremental
+    difference between signals, is expected to be positive if real), not a reaction to
+    already-observed results.
+  scope:
+    applies_to: [standalone_S0_S1_S2_mean_rank_ic_tests, paired_mean_rank_ic_difference_tests]
+    applies_to_phases: [phase_5, phase_6_regression_coefficients, phase_7, phase_7a, phase_7b, phase_8]
+    excludes_unchanged_and_still_two_sided:
+      - phase_10_portfolio_return_hac_tests
+      - phase_11_placebo_permutation_test
+      - decile_monotonicity_diagnostics
+      - any_long_short_or_portfolio_return_hac_test_in_any_phase
+  hypotheses:
+    standalone: {h0: mean_rank_ic_less_than_or_equal_zero, ha: mean_rank_ic_greater_than_zero}
+    paired: {h0: mean_rank_ic_difference_less_than_or_equal_zero, ha: mean_rank_ic_difference_greater_than_zero}
+  prior_rule: two_sided_hac5_t_stat_absolute_value_at_least_2
+  new_rule: one_sided_hac5_t_stat_at_least_1_645
+  new_critical_value: 1.645
+  critical_value_basis: standard_one_sided_5_percent_cutoff_under_normal_approximation_stats_norm_sf
+  recompute_policy: no_raw_signal_panel_or_t_statistic_recomputed_only_pass_fail_label_and_primary_supplementary_labeling_change
+  implementation:
+    helper_module: src/one_sided_ic_inference.py
+    phase_8_decision_rerun_script: src/apply_one_sided_ic_amendment_phase8.py
+    phase_8_decision_output: results/tables/phase8_decision_rule_evaluation_one_sided_amendment_2026-09-12.json
+    original_phase_8_decision_output_unchanged: results/tables/phase8_decision_rule_evaluation.json
+    original_output_preserved_because: checksum_pinned_in_phase_9_10_11_preservation_manifests
+  verdicts_that_flip_fail_to_pass:
+    - result: original_period_S0_full_sample_mean_ic
+      hac5_t: 1.899716
+      sources: [docs/phase5_naive_signal_report.md, docs/phase6_confound_analysis_report.md, docs/liquidity_universe_correction_report.md, docs/phase7b_candidate_history_report.md, config/research_config.yaml#historical_extension_phase_7a.frozen_phase_7b_benchmarks.s0_full_hac5_ic_t]
+    - result: original_period_S0_paired_mean_ic_candidate_history
+      hac5_t: 1.830747
+      sources: [docs/phase7b_candidate_history_report.md, docs/phase7a_report.md, docs/phase8_report.md, config/research_config.yaml#historical_extension_phase_7a.frozen_phase_7b_benchmarks.s0_paired_hac5_ic_t]
+      note: this_is_the_result_the_sponsor_specifically_flagged
+    - result: original_period_S0_paired_mean_ic_member_history_superseded_architecture
+      hac5_t: 1.737318
+      sources: [docs/phase7_abnormal_signal_report.md]
+      note: member_history_architecture_is_no_longer_primary_but_result_is_documented_and_unchanged
+  verdicts_confirmed_unchanged_still_fail:
+    - result: additional_S2_minus_S1_paired_ic_difference
+      hac5_t: 1.562703
+      note: closest_paired_difference_to_the_new_bar_still_fails
+    - result: additional_S2_minus_S0_paired_ic_difference
+      hac5_t: 0.315648
+    - result: original_S2_minus_S0_paired_ic_difference
+      hac5_t: 0.291257
+    - result: original_S2_minus_S1_paired_ic_difference
+      hac5_t: -0.897851
+    - result: phase7_member_history_paired_S1_minus_S0_ic_difference
+      hac5_t: 1.035865
+    - result: phase7b_candidate_history_paired_S1_minus_S0_ic_difference
+      hac5_t: 0.62794
+    - result: phase7a_additional_paired_S1_minus_S0_ic_difference
+      hac5_t: -0.332215
+    - result: phase6_regression_coefficient_rank_S0_model_1
+      hac5_t: 0.782473
+    - result: phase6_regression_coefficient_rank_S0_model_2
+      hac5_t: 1.00256
+    - result: phase6_regression_coefficient_rank_S0_model_3
+      hac5_t: 1.001267
+  phase_8_leading_candidate_rule_verdict: unchanged_still_retain_S1_S2_is_informative_robustness_test
+  phase_8_leading_candidate_rule_blocking_condition: paired_s2_minus_s1_ic_positive_fails_in_original_sample_independent_of_threshold
+  documentation_policy: superseding_notes_added_to_affected_phase_reports_original_text_not_deleted
+  automated_tests_added: tests/test_phase8_conditional_signal.py::test_one_sided_ic_bar_constants_and_helper,tests/test_phase8_conditional_signal.py::test_phase8_decision_json_reflects_one_sided_amendment,tests/test_phase8_conditional_signal.py::test_one_sided_amendment_did_not_disturb_pinned_decision_file
+  full_test_suite_status: 25_of_25_passed_after_amendment
+
+approved_S2_primary_promotion_override_2026_09_12:
+  approved_on: 2026-09-12
+  status: active
+  decision: S2_promoted_to_primary
+  decision_type: explicit_governance_override_not_a_data_driven_result
+  decision_statement: >-
+    S2 is promoted to primary, replacing S1. S1 becomes former primary, now robustness comparator,
+    reported prominently alongside S2 going forward, not diminished for having lost the primary
+    label. S0 is unchanged as baseline. This is a deliberate sponsor decision made in full view of
+    an unmet pre-registered promotion criterion and a materially weaker placebo result for the
+    promoted signal; it is not presented as data-driven and must not be described as satisfying
+    Phase 8's original promotion rule.
+  new_roles:
+    S2: {role: primary, previously: robustness_comparator}
+    S1: {role: former_primary_now_comparator, previously: primary}
+    S0: {role: baseline, previously: baseline, change: none}
+  reporting_requirement: >-
+    S1's unresolved paired comparison against S2 (Phase 8) and S2's weaker placebo result relative
+    to S1 (Phase 15) must both remain visible in all future reporting. Neither may be omitted,
+    softened, or reworded because S1 no longer carries the primary label.
+  pre_registered_phase_8_promotion_rule:
+    rule: paired_S2_minus_S1_mean_rank_ic_difference_positive_and_hac_significant_in_both_samples
+    source: evaluation.conditional_abnormal_signal_phase_8.leading_candidate_rule.paired_s2_minus_s1_ic_positive_both_samples
+    met_at_phase_8_original_two_sided_standard: false
+    additional_sample: {mean_ic_difference: 0.001763, hac5_t: 1.562703, note: positive_but_below_the_then_current_two_sided_bar_of_2}
+    original_sample: {mean_ic_difference: -0.001168, hac5_t: -0.897851, note: negative}
+    met_under_2026_09_12_one_sided_ic_amendment_t_at_least_1_645: false
+    note: >-
+      Under the amended one-sided t>=1.645 primary rule for paired IC-difference tests
+      (approved_one_sided_ic_inference_amendment above), the additional-sample difference
+      (t=1.5627) still falls short of 1.645, and the original-sample difference remains negative.
+      The pre-registered Phase 8 promotion rule was not met under either standard. This override
+      does not claim otherwise.
+  reasons_cited_for_override:
+    reason_1_phase_8_standalone_metrics:
+      source: docs/phase8_report.md
+      detail: >-
+        S2's standalone HAC(5) IC t-statistic and gross long-short Sharpe exceed S1's in both
+        samples (additional: t 3.48 vs 2.51, Sharpe 1.61 vs 1.22; original: t 2.55 vs 2.59 -- S1's
+        is marginally higher here -- Sharpe 1.42 vs 0.91). Mean Rank IC exceeds S1's in the
+        additional sample (0.00832 vs 0.00655) but not the original sample, where S1's mean IC
+        (0.01295) is higher than S2's (0.01178). This override does not claim S2 dominates S1 on
+        every individual metric in every sample; it cites the pattern accurately, not selectively.
+        See docs/phase8_report.md's own table for the complete, authoritative figures.
+    reason_2_phase_14_market_neutrality:
+      source: docs/phase14_market_neutrality_report.md
+      detail: >-
+        S2's gross standalone alpha clears the one-sided primary bar (HAC(5) t=1.710573, p=0.04358)
+        with a clean, statistically insignificant beta (-0.003562, t=-0.227360, p=0.820144). S1's
+        gross alpha narrowly misses the same bar (t=1.619474, p=0.052673) and, unlike S2, S0 (not
+        S1) was flagged for a significant beta in that phase; S1's own beta was small and
+        unflagged (0.011045, t=0.599268).
+    reason_3_phase_15_robustness_battery:
+      source: docs/phase15_robustness_S2_report.md
+      detail: >-
+        S2 matches or beats S1 on time-stability (HAC-lag sensitivity, calendar-year and
+        half-split gross means), the fixed-universe diagnostic, the liquidity-neutral control,
+        leave-one-calendar-year-out sign stability, and has meaningfully smaller single-day tail
+        risk (worst day -38.39 bps vs S1's -137.95 bps, additional sample; -49.71 vs -61.61 bps,
+        original sample).
+      caveat_disclosed_plainly_not_glossed_over: >-
+        S2 is notably weaker than S1 on the deterministic within-date placebo/permutation test.
+        S2's actual gross mean beats only approximately 98% of 1,000 random within-date score
+        permutations (empirical one-sided p = 0.019980 additional, 0.017982 original). S1's beat
+        essentially all of them (p = 0.000999 in both samples, the minimum attainable value with
+        1,000 permutations under the plus-one convention). This is recorded as a known, accepted
+        weakness in the promoted signal, not a reason to withhold the promotion, and not something
+        to be omitted from any future summary of S2's standing.
+  supersedes_as_current_governance_only_originals_preserved_verbatim:
+    - evaluation.final_rank_score_phase_9.roles
+    - evaluation.final_rank_score_phase_9.primary_score_field
+    - evaluation.realistic_portfolio_backtest_phase_10.frozen_signal_roles
+    - evaluation.robustness_falsification_phase_11.frozen_primary
+    - evaluation.robustness_falsification_phase_15_s2.governance_clarification
+    - evaluation.robustness_falsification_phase_15_s2.results.headline_conclusion
+    - approved_one_sided_ic_inference_amendment.phase_8_leading_candidate_rule_verdict
+    - results/tables/phase9_signal_governance.csv
+  supersession_policy: >-
+    Every field and report listed above is preserved byte-for-byte unchanged as the accurate
+    historical record of what was decided at the time. This block is the current authoritative
+    statement of signal roles going forward. It does not rewrite, delete, or reword any prior
+    finding or conclusion.
+  new_governance_artifact: results/tables/phase9_signal_governance_amended_2026-09-12.csv
+  full_writeup: docs/s2_primary_promotion_governance_override.md
+  recomputation_required: none
+  recomputation_rationale: >-
+    Phase 9's S2_bounded_rank_score, Phase 10's S2_continuous backtest, Phase 14's S2 alpha/beta,
+    and Phase 15's S2 robustness suite already exist, frozen and unchanged. This is a role and
+    label metadata change only; no signal, panel, backtest, or statistic was recomputed.
+  affected_but_not_recomputed:
+    - data/processed/phase9_final_rank_score_panel.parquet
+    - data/processed/phase10_daily_portfolio_exposure_panel.parquet
+    - data/processed/phase10_daily_portfolio_returns_by_cost.parquet
+    - results/tables/phase14_market_model_results.csv
+    - results/tables/phase15_robustness_summary.csv
+  prohibited:
+    - rewriting_or_deleting_any_historical_phase_report_finding
+    - rewording_phase_8_phase_11_or_phase_15_original_conclusions
+    - hiding_the_unmet_phase_8_promotion_criterion
+    - hiding_the_phase_15_placebo_gap
+    - recomputing_any_frozen_signal_panel_or_backtest
+    - describing_this_override_as_data_driven_or_as_satisfying_the_phase_8_rule
+    - removing_or_diminishing_S1_visibility_in_future_reporting
+
+paths:
+  raw_data: data/raw
+  intermediate_data: data/intermediate
+  processed_data: data/processed
+  results_tables: results/tables
+  results_figures: results/figures
+  research_log: logs/research_log.md
+
+data:
+  finra:
+    source_status: phase_3_full_warmup_and_evaluation_calendar_acquired
+    acquired_trade_date_start: 2025-01-15
+    acquired_trade_date_end: 2026-08-31
+    acquired_file_count: 408
+    acquired_file_failures: 0
+    primary_file: consolidated_nms
+    primary_file_scope: exchange_listed_securities_reported_to_finra_trfs_and_adf
+    sampled_trade_dates: [20260908, 20260909, 20260910]
+    sampled_component_date: 20260910
+    observed_schema_note: current_sample_volume_fields_contain_decimals
+    raw_file_immutability: true
+    retain_source_metadata: true
+    revision_policy: current_downloads_may_not_equal_as_first_published_versions
+    denominator_description: total_reported_volume_within_relevant_finra_dataset
+    phase_7a_extension:
+      acquired_trade_date_start: 2022-09-01
+      acquired_trade_date_end: 2025-05-28
+      shared_date_file_count: 686
+      failures: 0
+      manifest: data/raw/phase7a_finra_consolidated_nms_manifest.jsonl
+  market_data:
+    source: yahoo_finance_via_yfinance
+    role: auxiliary_ohlcv_target_liquidity_and_diagnostic_data_only
+    adjusted_ohlc_policy: auto_adjust_false_retain_adjusted_close_and_actions
+    warmup_start: 2025-01-15
+    evaluation_start: 2025-05-01
+    evaluation_end: 2026-08-31
+    sample_end_exclusive: 2026-09-01
+    date_selection_basis: complete_yahoo_ohlcv_window_and_http_200_finra_endpoint_probe_before_alpha_inspection
+    yfinance_version_observed: 1.7.0
+    phase_7a_extension:
+      acquired_start: 2022-09-01
+      historical_end_exclusive: 2025-05-29
+      successful_symbol_requests: 544
+      failed_symbol_requests: 42
+      failed_requests_retained: true
+      retired_para_feed_quarantined_as_ticker_misresolution: true
+
+universe:
+  primary_definition: fixed_retrieval_date_stamped_prototype_current_large_liquid_us_common_equities
+  universe_bias_disclosure: survivorship_and_selection_biased_not_production_ready_or_conclusive
+  candidate_source: sp_500_constituents_retrieved_from_wikipedia
+  candidate_retrieval_timestamp_utc: 2026-09-11T01:12:31.668153+00:00
+  candidate_count_retrieved: 503 # Three share-class rows above the approximate 300–500 target.
+  candidate_target_size: [300, 503]
+  exclude: [otc, etfs, preferred_shares, warrants_and_similar_non_common_securities]
+  refresh_frequency: monthly
+  membership_between_refreshes: fixed
+  liquidity_metric: trailing_median_dollar_adv
+  liquidity_lookback_trading_days: 20
+  target_security_count: [300, 500]
+  selection_rule: monthly_top_400_by_strictly_lagged_20_trading_day_median_dollar_volume
+  implementation_rule: exactly_20_immediately_preceding_shared_dates_all_close_and_volume_valid
+  legacy_implementation: expanding_history_median_with_minimum_20_observations_archived_and_nonprimary
+  selection_rule_rationale: fixed_prototype_candidate_set_then_point_in_time_liquidity_screen
+
+features:
+  raw_short_volume_ratio:
+    numerator: short_volume
+    denominator: total_reported_volume
+    zero_denominator: missing
+  volume_surprise:
+    formula: log(volume_t / median(volume_t_minus_20_to_t_minus_1))
+    lookback_trading_days: 20
+    minimum_history: 20
+  realized_volatility:
+    lookback_trading_days: null # Optional extension only.
+  abnormal_short_volume:
+    lookback_trading_days: 60
+    center: median
+    dispersion: mad
+    mad_scale: 1.4826
+    epsilon: 0.000001
+    history_includes_current_day: false
+  state_conditioning:
+    status: optional_extension_only
+    volume_surprise_buckets: 5
+    volatility_buckets: 5
+    cell_statistic: cross_sectional_median_abnormal_score
+
+signal:
+  primary_comparison: [raw_finra_short_volume_ratio, stock_relative_60_day_median_mad_abnormality]
+  raw_alpha: negative_abnormal_short_volume
+  final_transformation: cross_sectional_rank_as_portfolio_representation
+  rank_formula: (rank_minus_0_5_divided_by_n_times_2)_minus_1
+
+target:
+  primary_horizon: next_trading_day_open_to_close
+  formula: adjusted_close_t_plus_1_divided_by_adjusted_open_t_plus_1_minus_1
+  feature_cutoff: end_of_day_t
+  locked_primary_evaluation_start: 2025-05-28
+  locked_primary_evaluation_end: 2026-08-31
+  calendar_policy: immediately_following_shared_market_session_no_security_specific_shift
+
+portfolio:
+  long_quantile: 0.10
+  short_quantile: 0.10
+  weighting: equal_dollar_within_leg
+  long_exposure: 0.50
+  short_exposure: -0.50
+  gross_exposure: 1.00
+  turnover_formula: 0.5_times_sum_abs_weight_change
+  round_trip_cost_bps: [5, 10, 20]
+
+evaluation:
+  primary_signal_metric: daily_spearman_rank_ic
+  icir_annualization_days: 252
+  primary_portfolio_metric: top_decile_minus_bottom_decile_open_to_close_return
+  primary_confound: same_day_return_short_term_reversal
+  optional_extensions:
+    - volume_volatility_5x5_conditioning
+    - sector_and_market_cap_analysis
+    - alternative_horizons
+    - placebo_tests
+    - flow_versus_inventory_analysis
+    - extensive_transaction_cost_analysis
+  naive_signal_phase_5:
+    evaluation_window: [2025-05-28, 2026-08-31]
+    ratio_formula: ShortVolume_divided_by_TotalVolume
+    naive_alpha_formula: negative_raw_finra_ratio
+    expected_s0_rank_ic_sign: positive
+    raw_q_equivalent_expected_ic_sign: negative
+    ratio_bounds_tolerance: 1.0e-12
+    rank_tie_rule: stable_first_rank_after_canonical_symbol_sort
+    decile_rule: approximately_equal_count_floor_rank_times_10_divided_by_n_plus_1
+    hac_newey_west_lags: 5
+    predefined_subperiods:
+      - [2025-05-28, 2026-01-13]
+      - [2026-01-14, 2026-08-31]
+    directionally_supportive_if: mean_rank_ic_positive_and_mean_top_minus_bottom_decile_return_positive
+    statistically_convincing_if:
+      # Amended 2026-09-12: replaces two_sided_hac_rank_ic_t_stat_at_least_2 (see
+      # approved_one_sided_ic_inference_amendment). The long_short return criterion below is
+      # a portfolio-return test and is unaffected; it remains two-sided as originally defined.
+      - one_sided_hac_rank_ic_t_stat_at_least_1_645
+      - reasonably_monotonic_decile_profile
+      - positive_long_short_return
+      - positive_rank_ic_in_both_predefined_subperiods
+    performance_label: gross_illustrative_no_transaction_costs
+  confound_analysis_phase_6:
+    evaluation_window: [2025-05-28, 2026-08-31]
+    same_day_return_formula: adjusted_close_t_divided_by_adjusted_open_t_minus_1
+    reversal_formula: negative_same_day_open_to_close_return
+    volume_surprise_formula: log_volume_t_divided_by_median_of_20_strictly_prior_valid_volume_observations
+    volume_surprise_lookback_valid_observations: 20
+    realized_volatility_formula: sample_standard_deviation_of_20_strictly_prior_valid_close_to_close_returns_ending_t_minus_1
+    realized_volatility_lookback_valid_returns: 20
+    history_includes_current_day: false
+    regression_common_sample: intersection_of_nonmissing_s0_reversal_volume_surprise_realized_volatility_and_forward_return
+    regression_rank_normalization: daily_average_tie_percentile_rank_scaled_to_minus1_plus1
+    regression_rank_formula: 2_times_open_paren_rank_average_minus_0_5_close_paren_divided_by_n_minus_1
+    hac_newey_west_lags: 5
+    predefined_subperiods:
+      - [2025-05-28, 2026-01-13]
+      - [2026-01-14, 2026-08-31]
+    interpretation: associational_not_causal
+  abnormal_signal_phase_7:
+    evaluation_window: [2025-05-28, 2026-08-31]
+    shared_calendar_history_dates: 60
+    history_window: t_minus_60_through_t_minus_1
+    require_all_prior_q_observations: true
+    permit_backward_history_substitution: false
+    historical_center: median
+    historical_dispersion: median_absolute_deviation
+    mad_scale: 1.4826
+    epsilon: 0.000001
+    primary_z_transformation: none
+    primary_alpha: negative_z
+    primary_rank_use: ic_and_decile_assignment_only
+    decile_tie_rule: stable_first_rank_after_canonical_symbol_sort
+    extreme_z_handling: flag_do_not_winsorize_cap_or_remove
+    near_zero_mad_definition: mad_less_than_or_equal_to_epsilon
+    paired_s0_comparison: exact_s1_eligible_stock_date_observations
+    hac_newey_west_lags: 5
+    predefined_subperiods:
+      - [2025-05-28, 2026-01-13]
+      - [2026-01-14, 2026-08-31]
+    mechanical_example_selection: first_three_alphabetical_symbols_with_valid_s1_history
+  historical_extension_phase_7a:
+    specification_locked_before_acquisition: true
+    warmup_acquisition_start: 2022-09-01
+    additional_historical_evaluation: [2023-01-03, 2025-05-27]
+    original_examined_evaluation: [2025-05-28, 2026-08-31]
+    combined_evaluation: [2023-01-03, 2026-08-31]
+    endpoint_extra_market_session_required: true
+    historical_membership_source: wikipedia_sp500_current_snapshot_plus_additions_removals_table
+    reconstruction_direction: backward_from_timestamped_september_2026_snapshot
+    change_effective_date_policy: apply_on_stated_date
+    security_identity_policy: company_name_and_ticker_occurrence_not_ticker_alone
+    successor_substitution: prohibited
+    reconstruction_label: best_effort_public_not_licensed_point_in_time_security_master
+    monthly_liquidity_rule: top_400_by_strictly_prior_20_trading_day_median_dollar_volume
+    coverage_gate_complete_market_and_finra: 0.95
+    below_gate_policy: audit_but_do_not_silently_pool_or_call_survivorship_safe
+    frozen_signals: [q, S0, exact_60_shared_date_median_mad_z, S1]
+    epsilon: 0.000001
+    hac_newey_west_lags: 5
+    tuning_after_additional_period_view: prohibited
+    architecture: completed_phase_7b_candidate_history_layer
+    historical_security_union: all_reconstructed_members_with_features_built_before_signal_date_eligibility
+    signal_date_eligibility: reconstructed_sp500_membership_then_exact_20_date_top_400
+    exact_market_history_required_for_liquidity: [Close, Volume]
+    original_period_replication_required_before_historical_interpretation: true
+    combined_evaluation_permitted_only_after_coverage_gate_and_methodology_comparability: true
+    frozen_phase_7b_benchmarks:
+      s0_full_mean_ic: 0.010932669914732216
+      s0_full_hac5_ic_t: 1.8997162429899752
+      s0_full_gross_sharpe: 0.6257832740086068
+      s1_paired_eligible_rows: 125980
+      s0_paired_mean_ic: 0.0106174406
+      s0_paired_hac5_ic_t: 1.8307465014
+      s1_mean_ic: 0.0129529035
+      s1_hac5_ic_t: 2.5911943971
+      s1_one_sided_hac_ic_p: 0.0047821724
+      paired_ic_difference: 0.0023354629
+      paired_ic_difference_hac5_t: 0.6279402985
+      paired_ic_difference_one_sided_p: 0.2650215253
+    preservation_policy: phase_7a_prefix_only_no_overwrite_of_phase_0_through_7b
+    prospective_test_label_prohibited: true
+    execution_status: complete_stopped_for_review
+    reconstructed_security_instances: 576
+    observed_symbol_aliases: 587
+    required_finra_files: 686
+    complete_eligible_market_finra_rate: 0.999995840266223
+    coverage_gate_passed: true
+    original_phase_7b_replication: exact_within_1e-15_daily_ic_and_long_short
+    combined_evaluation_status: prohibited_by_preperformance_comparability_gate
+    combined_evaluation_reason: additional_period_uses_reconstructed_membership_but_original_phase7b_uses_fixed_september_2026_candidate_snapshot
+    additional_period_results:
+      s0_full_mean_ic: 0.0076666566
+      s0_full_hac5_ic_t: 2.3103173768
+      s1_mean_ic: 0.0065547268
+      s1_hac5_ic_t: 2.5051579414
+      s1_one_sided_hac_ic_p: 0.006120
+      paired_ic_difference_s1_minus_s0: -0.0008867733
+      paired_ic_difference_hac5_t: -0.332215
+  conditional_abnormal_signal_phase_8:
+    specification_locked_before_calculation: true
+    samples:
+      additional_historical: [2023-01-03, 2025-05-27]
+      original_fixed_snapshot: [2025-05-28, 2026-08-31]
+      pooled_combined_estimate: prohibited
+    architecture: candidate_level_feature_histories_signal_date_top400_membership_gate
+    inputs:
+      volume_surprise: exact_20_prior_shared_dates_all_valid
+      realized_volatility: exact_20_prior_shared_dates
+      z: frozen_phase_7a_7b_60_prior_shared_date_abnormality
+    conditioning:
+      volume_surprise_buckets: 5
+      realized_volatility_buckets: 5
+      bucket_tie_rule: stable_first_after_canonical_symbol_sort
+      state_cells: 25
+      merge_small_cells: prohibited
+      target_used_in_signal_formation: false
+      cell_center: contemporaneous_including_security_median_z
+    signal: S2_equals_negative_z_minus_cell_median_z
+    common_evaluation_sample: valid_S0_S1_S2_and_forward_target
+    inference:
+      hac_newey_west_lags: 5
+      # As approved 2026-09-11: two-sided primary for all HAC(5) tests in this phase.
+      # Amended 2026-09-12: rank-IC tests only (mean_ic, mean_ic_difference) now use a
+      # one-sided primary rule. Long-short/decile portfolio-return tests in this phase are
+      # unaffected. See approved_one_sided_ic_inference_amendment.
+      rank_ic_tests:
+        primary: one_sided_expected_effect_greater_than_zero
+        primary_critical_value: 1.645
+        supplementary: two_sided
+        amended_on: 2026-09-12
+        superseded_primary: two_sided_at_least_2
+      long_short_portfolio_tests:
+        primary: two_sided
+        supplementary: one_sided_expected_effect_greater_than_zero
+        unchanged_by_2026_09_12_amendment: true
+    leading_candidate_rule:
+      positive_s2_mean_ic_both_samples: required
+      # Amended 2026-09-12: replaces hac5_s2_ic_t_at_least_2_both_samples (two-sided |t| >= 2).
+      # See docs/one_sided_ic_inference_amendment_report.md and
+      # results/tables/phase8_decision_rule_evaluation_one_sided_amendment_2026-09-12.json.
+      # Verdict unaffected: both samples already cleared the old bar (t=3.48, t=2.55), and the
+      # rule remains blocked by paired_s2_minus_s1_ic_positive_both_samples failing in the
+      # original sample, independent of either threshold.
+      hac5_s2_ic_t_at_least_1_645_both_samples: required
+      hac5_s2_ic_t_at_least_2_both_samples_superseded: no_longer_decisive
+      paired_s2_minus_s1_ic_positive_both_samples: required
+      decile_monotonicity_not_materially_worse: required
+      coverage_not_materially_reduced: required
+      not_driven_by_small_cells: required
+      otherwise: retain_S1_and_treat_S2_as_robustness_test
+    prohibited: [final_bounded_rank_score, transaction_costs, alternative_bucket_counts, leave_one_out_medians, same_day_return_conditioning]
+    execution_status: complete_stopped_for_review
+    common_sample_coverage:
+      additional_stock_days: 240157
+      original_stock_days: 125980
+      retained_from_S1: 1.0
+    decision_rule_result: retain_S1_S2_is_informative_robustness_test
+    results:
+      additional_s2_mean_ic: 0.008318
+      additional_s2_hac5_ic_t: 3.478396
+      additional_s2_minus_s1_ic_difference: 0.001763
+      additional_s2_minus_s1_hac5_t: 1.562703
+      original_s2_mean_ic: 0.011784
+      original_s2_hac5_ic_t: 2.552719
+      original_s2_minus_s1_ic_difference: -0.001168
+      original_s2_minus_s1_hac5_t: -0.897851
+      small_cell_stock_day_fraction_range: [0.019283, 0.019971]
+  final_rank_score_phase_9:
+    specification_locked_before_construction: true
+    samples:
+      additional_historical: [2023-01-03, 2025-05-27]
+      original_fixed_snapshot: [2025-05-28, 2026-08-31]
+      pooled_combined_estimate: prohibited
+    # HISTORICAL: this is Phase 9's original, unmodified decision (2026-09-11) and is preserved
+    # verbatim. SUPERSEDED as current governance on 2026-09-12 by an explicit override, not a new
+    # data result — see approved_S2_primary_promotion_override_2026_09_12 below and
+    # docs/s2_primary_promotion_governance_override.md. S2 is now primary; S1 is former primary,
+    # now comparator; S0 is unchanged baseline.
+    roles:
+      S1: primary_predictive_signal
+      S0: baseline_benchmark
+      S2: frozen_robustness_comparator
+    eligibility:
+      signal_date_membership: top_400_only
+      score_formation_target_independent: true
+      missing_signal_policy: preserve_missing_score
+    rank:
+      direction: ascending_raw_signal_higher_score_predicts_higher_return
+      tie_rule: stable_first_after_canonical_symbol_sort
+      rank_range: one_through_n
+    formula: 2_times_rank_minus_1_divided_by_n_minus_1_minus_1
+    singleton_score_policy: zero_if_n_equals_1
+    benchmark_score_fields: [S0_bounded_rank_score, S2_bounded_rank_score]
+    # HISTORICAL, preserved verbatim. SUPERSEDED 2026-09-12: see approved_S2_primary_promotion_override_2026_09_12.
+    primary_score_field: S1_final_rank_score
+    score_bounds: [-1.0, 1.0]
+    score_mean_per_day: zero_within_numerical_tolerance
+    target_columns_separate_from_formation: true
+    rank_ic_equivalence_check: S1_score_and_raw_S1_spearman_equal_within_numerical_tolerance
+    source_artifact_preservation: phase9_pre_score_source_artifacts_manifest
+    prohibited: [realistic_portfolio_backtest, transaction_costs, signal_modification, machine_learning, fitted_coefficients, new_conditioning_variables, performance_selected_transformations]
+    execution_status: complete_stopped_for_review
+    score_panel_rows: 367200
+    sample_coverage:
+      additional_top400_stock_days: 240400
+      additional_s1_score_eligible: 240157
+      original_top400_stock_days: 126800
+      original_s1_score_eligible: 125980
+    validation:
+      source_artifacts_hash_verified: 84
+      score_bounds: passed
+      daily_centering: passed
+      endpoint_mapping: passed
+      canonical_tie_breaking: passed
+      target_independence: passed
+      sample_membership_reproduction: passed
+      s1_rank_ic_equivalence_days: 918
+      automated_tests_passed: 15
+  realistic_portfolio_backtest_phase_10:
+    specification_locked_before_results: true
+    status: complete_stopped_for_review
+    samples:
+      additional_historical: [2023-01-03, 2025-05-27]
+      original_fixed_snapshot: [2025-05-28, 2026-08-31]
+      pooled_estimate: prohibited
+    # HISTORICAL, preserved verbatim. SUPERSEDED 2026-09-12: see approved_S2_primary_promotion_override_2026_09_12.
+    frozen_signal_roles:
+      S1_final_rank_score: primary
+      S0_bounded_rank_score: baseline
+      S2_bounded_rank_score: robustness_comparator
+    timeline:
+      signal_information: end_of_signal_date_t
+      finra_availability_assumption: date_t_FINRA_file_available_before_next_shared_market_open
+      entry: designated_next_shared_market_session_open
+      exit: designated_next_shared_market_session_close
+      overnight_holding: false
+      return_field: forward_oc_return
+      records_required: [signal_date, trade_date]
+    primary_portfolio:
+      specification: continuous_dollar_neutral_all_S1_score_eligible_securities
+      weight_formula: score_divided_by_sum_absolute_score
+      gross_exposure: 1.0
+      net_exposure: 0.0
+      long_gross_exposure: 0.5
+      short_gross_exposure: 0.5
+    benchmarks:
+      continuous_scores: [S0_bounded_rank_score, S2_bounded_rank_score]
+      secondary_S1_specification: equal_weight_top_decile_minus_bottom_decile
+      secondary_leg_gross_exposure: 0.5
+    missing_target_policy:
+      weights_formed_without_target_or_target_availability: true
+      nonzero_weight_missing_target: mark_entire_strategy_day_unavailable
+      post_target_reweighting: prohibited
+      later_date_substitution: prohibited
+      zero_fill: prohibited
+    transaction_costs:
+      one_way_bps: [0.0, 1.0, 2.5, 5.0]
+      primary_one_way_bps: 2.5
+      entry_and_exit_applied: true
+      net_return_formula: gross_return_minus_2_times_one_way_cost_times_gross_exposure
+      omitted: [short_borrow, market_impact, locate_failures, financing, taxes, commissions]
+      interpretation: illustrative_aggregate_spread_slippage_fee_assumption
+    inference:
+      hac_newey_west_lags: 5
+      primary: two_sided_p_value
+      supplementary: one_sided_positive_alpha_p_value
+      risk_free_rate: 0.0
+    paired_comparisons:
+      primary: [S1_minus_S0, S1_minus_S2]
+      identical_available_dates_required: true
+      every_cost_case_required: true
+    capacity_diagnostics:
+      prior_window: exactly_20_shared_market_dates_ending_t_minus_1
+      metric: median_raw_Close_times_raw_Volume
+      gross_portfolios_usd: [10000000, 50000000]
+      participation_thresholds: [0.01, 0.05, 0.10]
+      future_volume_allowed: false
+      optimization_use: prohibited
+    globe_life_discontinuity:
+      signal_date: 2024-04-10
+      canonical_security: current_cik_0000320335_symbol_GL
+      primary_analysis: retained
+      sensitivity: exclude_only_affected_strategy_day_and_label_nonprimary
+    labels:
+      results: illustrative
+      limitations: [not_survivorship_safe, no_as_first_published_FINRA_vintages]
+    source_artifact_preservation: phase10_pre_backtest_source_artifacts_manifest
+    prohibited: [signal_optimization, threshold_optimization, portfolio_rule_optimization, holding_period_optimization, cost_assumption_optimization, additional_robustness_searches]
+    results:
+      source_artifacts_hash_verified: 91
+      automated_tests_passed: 19
+      unavailable_strategy_days: 1
+      unavailable_strategy_day_detail: original_S0_continuous_2025_11_11_FISV_missing_designated_target
+      additional_S1_continuous:
+        gross_mean_daily_bps: 0.745693
+        gross_hac5_t: 1.708723
+        gross_two_sided_p: 0.087502
+        gross_cumulative_return: 0.045361
+        gross_sharpe: 0.964621
+        break_even_one_way_cost_bps: 0.372847
+        primary_net_2_5bps_mean_daily_bps: -4.254307
+        primary_net_2_5bps_cumulative_return: -0.226006
+      original_S1_continuous:
+        gross_mean_daily_bps: 1.678151
+        gross_hac5_t: 1.636949
+        gross_two_sided_p: 0.101641
+        gross_cumulative_return: 0.054241
+        gross_sharpe: 1.737353
+        break_even_one_way_cost_bps: 0.839075
+        primary_net_2_5bps_mean_daily_bps: -3.321849
+        primary_net_2_5bps_cumulative_return: -0.100298
+      paired_primary_net_2_5bps:
+        additional_S1_minus_S0_hac5_t: -0.321345
+        additional_S1_minus_S2_hac5_t: -1.523417
+        original_S1_minus_S0_hac5_t: 0.869566
+        original_S1_minus_S2_hac5_t: 0.386366
+  robustness_falsification_phase_11:
+    specification_locked_before_results: true
+    status: complete_stopped_for_review
+    samples:
+      additional_historical: [2023-01-03, 2025-05-27]
+      original_fixed_snapshot: [2025-05-28, 2026-08-31]
+      pooled_estimate: prohibited
+    # HISTORICAL, preserved verbatim. SUPERSEDED 2026-09-12: see approved_S2_primary_promotion_override_2026_09_12.
+    frozen_primary:
+      signal: S1
+      score_field: final_rank_score
+      portfolio: phase10_continuous_dollar_neutral
+      full_sample_remains_primary: true
+    time_stability:
+      rolling_window_sessions: 63
+      half_split: equal_sequence_halves_first_floor_and_second_remainder
+      hac_lag_sensitivity: [0, 5, 10, 20]
+      gross_and_primary_net_required: true
+    breadth_variants:
+      fractions_each_side: [0.05, 0.10, 0.20]
+      continuous_reference: true
+      weighting: equal_dollar_within_each_leg
+      leg_gross_exposure: 0.5
+      tail_count_rule: ceil_fraction_times_daily_s1_eligible_count_minimum_one
+      status: post_result_exploratory
+    fixed_universe_diagnostic:
+      universe: securities_member_on_first_evaluation_date_of_each_sample
+      later_entrants: excluded
+      later_exits: missing_retained
+      status: diagnostic_not_superior_universe
+      survivorship_bias_removed: false
+    controls:
+      sector:
+        use_only_existing_classification: true
+        status: unavailable_if_coverage_inadequate
+        point_in_time_history_required: disclosed
+      liquidity:
+        grouping: daily_prior_median_dollar_volume_quintiles
+        metric: exactly_20_prior_raw_Close_times_raw_Volume_median
+        residualization: demean_frozen_S1_score_within_daily_quintile
+        market_cap_label_prohibited: true
+    outliers:
+      retain_full_sample_primary: true
+      excluded_sets: [globe_life_flagged_observation, all_previously_flagged_extreme_target_observations]
+      influence_windows: [1, 5, 10]
+      leave_one_calendar_year_out: true
+      single_security_influence: ten_most_influential_securities
+    placebo:
+      method: within_date_permutation_of_S1_scores_across_securities
+      permutations: 1000
+      random_seed: 20260911
+      preserve_date_score_distribution_and_target_returns: true
+      empirical_one_sided_probability: placebo_mean_at_least_actual_mean
+      samples_separate: true
+    costs:
+      one_way_bps: [0.0, 1.0, 2.5, 5.0]
+      primary_one_way_bps: 2.5
+      entry_and_exit: true
+    labels:
+      prior_checks: robustness_test
+      new_portfolio_variants: post_result_exploratory
+      results: illustrative
+    source_artifact_preservation: phase11_pre_robustness_source_artifacts_manifest
+    prohibited: [signal_modification, primary_specification_replacement, parameter_optimization, new_data_acquisition, pooled_estimate]
+    results:
+      source_artifacts_hash_verified: 139
+      phase10_primary_daily_reproduction: exact
+      placebo_permutations: 1000
+      placebo_seed: 20260911
+      sector_neutralization_status: unavailable_no_existing_sector_field
+      additional_primary_gross_mean_bps: 0.745693
+      original_primary_gross_mean_bps: 1.678151
+      additional_primary_net_2_5bps_mean_bps: -4.254307
+      original_primary_net_2_5bps_mean_bps: -3.321849
+      additional_placebo_empirical_one_sided_p: 0.000999
+      original_placebo_empirical_one_sided_p: 0.000999
+      automated_tests_passed: 22
+
+  market_neutrality_regression_phase_14:
+    specification_locked_before_results: true
+    locked_on: 2026-09-12
+    status: complete_stopped_for_review
+    scope:
+      sample: original_2025-05-28_2026-08-31
+      additional_sample: excluded_from_this_phase
+      additional_sample_exclusion_rationale: reserved_for_signal_validation_not_this_check
+      pooled_estimate: prohibited
+    strategies: [S0_continuous, S1_continuous, S2_continuous]
+    strategy_return_source:
+      primary:
+        panel: data/processed/phase10_daily_portfolio_exposure_panel.parquet
+        field: gross_return
+        note: exact_frozen_phase10_series_not_rebuilt_or_rederived
+      secondary_net_check:
+        panel: data/processed/phase10_daily_portfolio_returns_by_cost.parquet
+        field: net_return
+        one_way_cost_bps: 2.5
+        role: labeled_secondary_check_only_not_decisive
+      exclude_unavailable_strategy_days: true
+      exclusion_note: matches_phase_10s_own_hac_test_construction_e_g_original_S0_uses_316_of_317_days
+    market_factor:
+      instrument: SPY
+      instrument_rationale: actual_traded_security_with_real_open_and_close_prices_not_raw_index_consistent_with_project_price_sourcing
+      source: yahoo_finance_via_yfinance
+      adjusted_ohlc_policy: auto_adjust_false_adjustment_factor_equals_adj_close_divided_by_close
+      formula: adjusted_close_t_divided_by_adjusted_open_t_minus_1
+      window_rationale: same_session_open_to_close_matching_phase4_forward_oc_return_definition_and_the_strategys_own_no_overnight_holding_window
+      trade_dates: exact_same_available_trade_dates_as_each_strategys_original_sample_gross_return_series
+      missing_coverage_policy: document_any_missing_or_gapped_spy_trade_date_do_not_interpolate_or_substitute
+    regression:
+      form: strategy_gross_return_t_equals_alpha_plus_beta_times_market_return_t_plus_epsilon_t
+      estimator: statsmodels_OLS_on_constant_and_market_return
+      cov_type: HAC
+      hac_newey_west_lags: 5
+    hypotheses:
+      alpha:
+        h0: alpha_less_than_or_equal_zero
+        ha: alpha_greater_than_zero
+        sided: one_sided
+        critical_value: 1.645
+        decisive: true
+        role: primary_decisive_test
+      beta:
+        h0: beta_equals_zero
+        ha: beta_not_equal_zero
+        sided: two_sided
+        decisive: false
+        role: diagnostic_only_flag_if_large_or_statistically_significant_since_dollar_neutral_construction_should_produce_near_zero_beta
+    prohibited: [rebuilding_or_rederiving_the_phase10_portfolio, modifying_any_phase_1_through_13_frozen_artifact, tuning_after_viewing_results, additional_sample_reporting_in_this_phase, pooled_estimate]
+    source_artifact_preservation: phase14_pre_market_neutrality_source_artifacts_manifest
+    market_data:
+      instrument: SPY
+      retrieval_timestamp_utc: 2026-09-12T19:57:19.348588+00:00
+      requested_window: [2025-05-22, 2026-09-01]
+      rows_returned: 323
+      missing_trade_dates_any_strategy: 0
+    results:
+      source_artifacts_hash_verified: 14
+      automated_tests_passed: 10
+      gross:
+        S0_continuous: {n: 316, alpha_bps_per_day: 0.892629, alpha_hac5_t: 0.731104, alpha_one_sided_p: 0.232358, alpha_clears_primary_bar: false, beta: 0.059530, beta_hac5_t: 2.602916, beta_two_sided_p: 0.009243, beta_flagged: true}
+        S1_continuous: {n: 317, alpha_bps_per_day: 1.660952, alpha_hac5_t: 1.619474, alpha_one_sided_p: 0.052673, alpha_clears_primary_bar: false, beta: 0.011045, beta_hac5_t: 0.599268, beta_two_sided_p: 0.548994, beta_flagged: false}
+        S2_continuous: {n: 317, alpha_bps_per_day: 1.560495, alpha_hac5_t: 1.710573, alpha_one_sided_p: 0.043580, alpha_clears_primary_bar: true, beta: -0.003562, beta_hac5_t: -0.227360, beta_two_sided_p: 0.820144, beta_flagged: false}
+      net_2_5bps_secondary:
+        S0_continuous: {alpha_bps_per_day: -4.107371, alpha_hac5_t: -3.364127, alpha_clears_primary_bar: false}
+        S1_continuous: {alpha_bps_per_day: -3.339048, alpha_hac5_t: -3.255662, alpha_clears_primary_bar: false}
+        S2_continuous: {alpha_bps_per_day: -3.439505, alpha_hac5_t: -3.770296, alpha_clears_primary_bar: false}
+      summary: only_S2_gross_alpha_clears_the_primary_one_sided_bar_S1_gross_falls_just_short_S0_gross_fails_and_has_a_flagged_significant_beta_all_net_alphas_are_negative_and_fail
+
+  robustness_falsification_phase_15_s2:
+    specification_locked_before_results: true
+    locked_on: 2026-09-12
+    status: complete_stopped_for_review
+    purpose: extend_phase_11_robustness_suite_to_S2_the_frozen_robustness_comparator
+    # HISTORICAL, preserved verbatim: this was accurate when Phase 15 ran on 2026-09-12.
+    # SUPERSEDED later the same day by an explicit governance override, not a new data result —
+    # see approved_S2_primary_promotion_override_2026_09_12 below. This field's own results
+    # (the S2 vs S1 comparison, including the placebo gap) were themselves cited as reasons for
+    # that override and are unchanged here.
+    governance_clarification: >-
+      S2 has NOT been promoted to primary. Frozen Phase 9 roles are unchanged: S1 primary,
+      S0 baseline, S2 robustness comparator. This phase runs the identical Phase 11 battery on
+      S2 as an additive extension for parity/completeness, not because S2's role changed.
+    mirrors: phase_11_robustness_falsification
+    subject_substitution: S1_to_S2
+    identical_parameters_reused_from_phase_11:
+      rolling_window_sessions: 63
+      half_split: equal_sequence_halves_first_floor_and_second_remainder
+      hac_lag_sensitivity: [0, 5, 10, 20]
+      breadth_fractions_each_side: [0.05, 0.10, 0.20]
+      breadth_weighting: equal_dollar_within_each_leg
+      breadth_status: post_result_exploratory_not_decisive
+      fixed_universe_diagnostic: securities_member_on_first_evaluation_date_of_each_sample_later_entrants_excluded_later_exits_missing_retained
+      liquidity_neutral_grouping: daily_prior_median_dollar_volume_quintiles
+      liquidity_neutral_metric: exactly_20_prior_raw_Close_times_Volume_median
+      liquidity_neutral_residualization: demean_frozen_S2_bounded_rank_score_within_daily_quintile
+      sector_neutral_status: unavailable_same_documented_reason_as_phase_11_no_existing_sector_field
+      outlier_exclusion_sets: [globe_life_flagged_observation, all_previously_flagged_extreme_target_observations]
+      influence_windows: [1, 5, 10]
+      leave_one_calendar_year_out: true
+      single_security_influence: ten_most_influential_securities
+      placebo_method: within_date_permutation_of_S2_raw_scores_across_securities
+      placebo_permutations: 1000
+      placebo_seed: 20260911
+      placebo_seed_rationale: reuse_phase_11_seed_for_direct_comparability_to_S1_result_no_reason_to_change_it
+      costs_one_way_bps: [0.0, 1.0, 2.5, 5.0]
+      primary_one_way_bps: 2.5
+      entry_and_exit: true
+    samples:
+      additional_historical: [2023-01-03, 2025-05-27]
+      original_fixed_snapshot: [2025-05-28, 2026-08-31]
+      pooled_estimate: prohibited
+      scope_note: both_samples_matching_phase_11_own_scope_not_restricted_to_one_sample
+    subject_signal:
+      raw_field: S2
+      bounded_score_field: S2_bounded_rank_score
+      primary_strategy_name: S2_continuous
+    source_artifact_preservation: phase15_pre_robustness_s2_source_artifacts_manifest
+    prohibited: [signal_modification, primary_specification_replacement, parameter_optimization, new_data_acquisition, pooled_estimate, modifying_any_phase_1_through_14_frozen_artifact, promoting_S2_to_primary_in_this_phase]
+    comparison_requirement: report_S1_phase_11_result_alongside_S2_this_phase_result_for_every_check
+    results:
+      source_artifacts_hash_verified: 140
+      automated_tests_passed: 10
+      phase10_S2_daily_returns_reproduced: exact
+      primary_continuous_gross_mean_bps: {additional: 1.111826, original: 1.554948}
+      primary_continuous_gross_hac5_t: {additional: 2.965161, original: 1.701261}
+      primary_continuous_net_2_5bps_mean_bps: {additional: -3.888174, original: -3.445052}
+      placebo_empirical_one_sided_p: {additional: 0.019980, original: 0.017982}
+      placebo_empirical_one_sided_p_s1_phase11_for_comparison: {additional: 0.000999, original: 0.000999}
+      placebo_actual_mean_return: {additional: 0.000111, original: 0.000155}
+      placebo_mean_of_permutations: {additional: 0.000033, original: 0.000014}
+      every_breadth_variant_negative_at_2_5bps: true
+      fixed_universe_gross_mean_bps: {additional: 1.017596, original: 1.601303}
+      liquidity_neutral_gross_mean_bps: {additional: 1.041467, original: 1.627702}
+      leave_one_year_out_sign_always_positive: true
+      worst_single_day_bps: {additional: -38.394694, original: -49.712982}
+      worst_single_day_bps_s1_phase11_for_comparison: {additional: -137.946698, original: -61.610343}
+      # HISTORICAL, preserved verbatim: this sentence's data findings are exactly what were cited
+      # as reasons 3 (Phase 15 comparison) in the 2026-09-12 override below. Only its closing claim
+      # that S2's role does not change is superseded by that later, same-day override.
+      headline_conclusion: >-
+        S2 clears every check S1 cleared in Phase 11 except the placebo/permutation test's
+        strength: S2's empirical one-sided p is 0.0200 (additional) and 0.0180 (original),
+        materially weaker than S1's 0.000999 in both samples (the minimum attainable value with
+        1,000 permutations), though still below the conventional 0.05 threshold. S2's placebo
+        distribution is centered near zero rather than clearly negative, unlike S1's. Every other
+        check (gross positivity across HAC lags, calendar years, half-splits, breadth variants,
+        fixed-universe and liquidity-neutral controls, leave-one-year-out sign stability, net
+        negativity at the primary 2.5-bps-per-side cost) shows the same qualitative pattern for
+        S2 as it did for S1, with S2's single-day tail risk notably smaller than S1's in both
+        samples. This does not change S2's frozen role as robustness comparator, nor does it alter
+        S1's status as primary.
+
+reproducibility:
+  random_seed: 20260910
+  missing_values_are_zero: false
+  data_versioning_required: true
+  retain_failed_experiments: true
